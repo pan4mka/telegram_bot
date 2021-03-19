@@ -1,0 +1,207 @@
+import telebot
+import random
+import requests
+
+from telebot import types
+
+markup = types.ReplyKeyboardMarkup(row_width=2)
+name = ''
+surname = ''
+
+#picture1 = open("", 'rb')  # добавьте ваши картинки подобным образом, затем добавьте их в список pictures.
+
+#pictures = [picture1, ...]  # список ваших фото.
+
+answer = ["Что?", "Кого?", "Чего?", "Скоро я захвачу твою планету, жалкий мясной человечек.",
+          "Пользуйся командами, не пиши чушь.", "А ты милаха:)", "И что это?"]  # случайные фразы для бота.
+
+bot = telebot.TeleBot("")  # write your key in brackets / впишите ключ в скобки.
+
+
+@bot.message_handler(commands=['start', 'help'])
+def send_welcome(message):
+    bot.reply_to(message,
+                 "Приветствую, житель Земли. \n"
+                 "\n - Используйте /reg , чтобы бот знал, с кем имеет дело."
+                 " \n - Используйте /mem , бот подберет вам мем на день! "
+                 "\n - Как насчет /wtr погоды? У шуточных городов - шуточная погода."
+                 " \n Используй /calc , если нужно посчитать.")  # команды бота.
+
+
+@bot.message_handler(func=lambda message: True)  # здесь пишем то, как бот должен реагировать на разные фразы клиента.
+def echo_all(message):
+    if message.text == "Привет" or message.text == "привет":
+        bot.reply_to(message, "Привет, таинственный незнакомец.")
+    elif message.text == "hello" or message.text == "hi":
+        bot.reply_to(message, 'Oh, hi Mark!')
+    elif message.text == "/reg":
+        bot.send_message(message.from_user.id, 'Привет, давай дружить! Как тебя зовут?')
+        bot.register_next_step_handler(message, registrate.reg_name)
+
+    elif message.text == '/mem':
+        bot.send_message(message.from_user.id, 'Привет!')
+        mem(message)
+    elif message.text == '/wtr':
+        bot.send_message(message.from_user.id, 'Впишите название вашего города ниже.')
+        bot.register_next_step_handler(message, wtr)
+
+    elif message.text == '/calc':
+        bot.send_message(message.from_user.id, 'Впишите первую цифру.')
+        bot.register_next_step_handler(message, calculator.calc)
+    elif message.text == "спасибо" or message.text == "Спасибо":
+        bot.reply_to(message, "Тебе спасибо, за то, что ты есть:)")
+    elif message.text == ":)":
+        bot.reply_to(message, ":*")
+    elif message.text == "пока" or message.text == "Пока":
+        bot.reply_to(message, "До встречи)")
+
+    elif message.text == "команды" or message.text == "Команды":
+        bot.reply_to(message,
+                     "\n - Используйте /reg , чтобы бот знал, с кем имеет дело."
+                 " \n - Используйте /mem , бот подберет вам мем на день! "
+                 "\n - Как насчет /wtr погоды? У шуточных городов - шуточная погода."
+                 " \n Используй /calc , если нужно посчитать.")
+    else:
+        answers = random.choice(answer)
+        bot.reply_to(message, answers)
+
+
+class registrate():  # знакомится с пользователем.
+
+    def reg_name(message):
+        global name
+        name = message.text
+        bot.send_message(message.from_user.id, 'Какая у вас фамилия?')
+        bot.register_next_step_handler(message, registrate.reg_surname)
+
+    def reg_surname(message):
+        global surname
+        surname = message.text
+        bot.send_message(message.from_user.id, 'Сколько вам лет?')
+        bot.register_next_step_handler(message, registrate.reg_age)
+
+    def reg_age(message):
+        age = 0
+        while age == 0:
+            try:
+                age = int(message.text)
+            except Exception:
+                bot.send_message(message.from_user.id, 'Вводите цифрами.')
+                return
+        keyboard = types.InlineKeyboardMarkup()
+        key_yes = types.InlineKeyboardButton(text='Да', callback_data='yes')
+        keyboard.add(key_yes)
+        key_no = types.InlineKeyboardButton(text='Нет', callback_data='no')
+        keyboard.add(key_no)
+
+        if age == 1:
+            question = "Тебе " + str(age) + " год? И тебя зовут " + name + " " + surname + "?"
+        elif age > 1 and age < 5:
+            question = "Тебе " + str(age) + " года? И тебя зовут " + name + " " + surname + "?"
+        elif age >= 5 and age < 21:
+            question = "Тебе " + str(age) + " лет? И тебя зовут " + name + " " + surname + "?"
+
+        else:
+            digit = age % 10
+            if digit == 1:
+                question = "Тебе " + str(age) + " год? И тебя зовут " + name + " " + surname + "?"
+            elif digit >= 2 and digit <= 4:
+                question = "Тебе " + str(age) + " года? И тебя зовут " + name + " " + surname + "?"
+            elif digit >= 5 and digit <= 9 or digit == 0:
+                question = "Тебе " + str(age) + " лет? И тебя зовут " + name + " " + surname + "?"
+
+        bot.send_message(message.from_user.id, text=question, reply_markup=keyboard)
+
+
+@bot.callback_query_handler(func=lambda call: True) # здесь описываете значения кнопок, которые вы установили.
+def callback_worker(call):
+    if call.data == "yes":
+        bot.send_message(call.message.chat.id,
+                         "Приятно познакомиться! Теперь запишу это в базу данных Кремля. Шутка :)")
+
+    elif call.data == 'no':
+        bot.send_message(call.message.chat.id, "Попробуем еще разок.")
+        bot.send_message(call.message.chat.id, 'Привет, давай дружить! Как тебя зовут?')
+        bot.register_next_step_handler(call.message, registrate.reg_name)
+
+
+    elif call.data == "da":
+        random_picture = random.choice(pictures)
+        bot.send_photo(call.message.chat.id, random_picture)
+    elif call.data == "net":
+        bot.send_message(call.message.chat.id, "Тогда без мемов.")
+
+
+    elif call.data == 'plus':
+        otvet = calc1 + calc2
+        bot.send_message(call.message.chat.id, otvet)
+    elif call.data == 'minus':
+        otvet = calc1 - calc2
+        bot.send_message(call.message.chat.id, otvet)
+    elif call.data == 'umnoj':
+        otvet = calc1 * calc2
+        bot.send_message(call.message.chat.id, otvet)
+    elif call.data == 'delit':
+        otvet = calc1 / calc2
+        bot.send_message(call.message.chat.id, otvet)
+
+
+def mem(message): # показывает случайную картинку.
+    keyboard = types.InlineKeyboardMarkup()
+    key_yes = types.InlineKeyboardButton(text='Да', callback_data='da')
+    keyboard.add(key_yes)
+    key_no = types.InlineKeyboardButton(text='Нет', callback_data='net')
+    keyboard.add(key_no)
+    qq = 'Хотите мем?'
+    bot.send_message(message.from_user.id, text=qq, reply_markup=keyboard)
+
+
+def wtr(message):     # показывает погоду.
+    city = message.text
+    url = f'http://wttr.in/{city}'
+
+    weather_parameters = {
+        '0': '',
+        "T": '',
+        'M': '',
+        'lang': 'ru',
+        'format': 2
+    }
+
+    response = requests.get(url, params=weather_parameters)
+    bot.send_message(message.from_user.id, response.text)
+
+
+class calculator(): # считает.
+    def calc(message):
+        global calc1
+        calc1 = int(message.text)
+        bot.send_message(message.from_user.id, 'Впишите второе число:')
+        bot.register_next_step_handler(message, calculator.calcu)
+
+    def calcu(message):
+        global calc2
+        calc2 = 0
+
+        while calc2 == 0:
+            try:
+                calc2 = int(message.text)
+            except Exception:
+                bot.send_message(message.from_user.id, 'Вводите цифрами.')
+                return
+        keyboard = types.InlineKeyboardMarkup()
+        key_yes = types.InlineKeyboardButton(text='+', callback_data='plus')
+        keyboard.add(key_yes)
+        key_no = types.InlineKeyboardButton(text='-', callback_data='minus')
+        keyboard.add(key_no)
+        key_umnoj = types.InlineKeyboardButton(text='*', callback_data='umnoj')
+        keyboard.add(key_umnoj)
+        key_delit = types.InlineKeyboardButton(text='/', callback_data='delit')
+        keyboard.add(key_delit)
+        markup.row(key_yes, key_no)
+        markup.row(key_umnoj, key_delit)
+        qq = 'Выберите действие.'
+        bot.send_message(message.from_user.id, text=qq, reply_markup=keyboard)
+
+
+bot.polling()
